@@ -1,0 +1,15 @@
+[Unit]
+Description=voice-input (hold key to talk)
+After=graphical-session.target pipewire.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/voice-input
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/projects/voice-input/.venv/bin/python -m voice_input.main run
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

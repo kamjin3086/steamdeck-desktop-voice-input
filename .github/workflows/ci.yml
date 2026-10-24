@@ -1,0 +1,37 @@
+name: Tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  hardware-free:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0 desktop-file-utils
+          python -m pip install --only-binary=:all: -r requirements.txt
+      - name: Check syntax and desktop entry
+        run: |
+          bash -n init.sh desktop.sh stop.sh run.sh scripts/*.sh
+          python -m compileall -q voice_input tests
+          desktop-file-validate Init.desktop
+      - name: Run hardware-free tests
+        run: |
+          python -m unittest discover -s tests -p test_hold_to_talk.py
+          python -m unittest discover -s tests -p test_binding_dialog.py
+          python -m unittest discover -s tests -p test_desktop_lifecycle.py
+          python -m unittest discover -s tests -p test_installation.py
+          python tests/test_autostop.py
+          python tests/test_bind_detect.py
+          python tests/test_trigger_logic.py
+          python tests/test_hud.py
+          python tests/test_cloud_backend.py

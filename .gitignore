@@ -1,0 +1,12 @@
+.venv/
+models/
+*.wav
+!models/**/test_wavs/*.wav
+__pycache__/
+*.pyc
+.last.wav
+.env
+.env.*
+*.log
+*.part
+.release/

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install or repair Voice Input
+Comment=Install dependencies, select a model, and create a desktop shortcut
+Exec=sh -c "exec bash \\"\\$(dirname \\"\\$1\\")/init.sh\\"" sh %k
+Icon=system-software-install
+Terminal=true
+Categories=Utility;

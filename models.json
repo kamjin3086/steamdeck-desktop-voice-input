@@ -1,0 +1,82 @@
+{
+  "_comment": "Shared model and service catalog used by the GUI and CLI.",
+  "models": {
+    "zh14m": {
+      "name": "Zipformer Chinese 14M (int8)",
+      "dir": "sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23.tar.bz2",
+      "archive_bytes": 74004050,
+      "installed_bytes": 25400000,
+      "streaming": true,
+      "rt_factor": 23,
+      "languages": [
+        "zh"
+      ],
+      "note": "Default lightweight Chinese model. For English dictation choose a bilingual or multilingual model.",
+      "verified": true,
+      "files": {
+        "encoder-epoch-99-avg-1.int8.onnx": "1c556ea57cec304e55ec4b72e52c1cc098bb01476ed7d90f3de939fe126487b1",
+        "decoder-epoch-99-avg-1.int8.onnx": "22f123bb8cba9b38974b3df18a3f45e7081f4985ebb2e075d9f21f618c468bbf",
+        "joiner-epoch-99-avg-1.int8.onnx": "a7cf9d82757bdcf786059454495a9ca95e4bd7347f72473fc08d794475c36169",
+        "tokens.txt": "8b294db9045d6e5f94647f4c1eec1af4da143a75053c399611444b378ff966ac"
+      }
+    },
+    "bilingual": {
+      "name": "Zipformer Chinese/English small",
+      "dir": "sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16.tar.bz2",
+      "archive_bytes": 200000000,
+      "streaming": true,
+      "rt_factor": 10,
+      "languages": [
+        "zh",
+        "en"
+      ],
+      "note": "Streaming Chinese and English. Not benchmarked on the release test host.",
+      "verified": false,
+      "files": {}
+    },
+    "whisper-small": {
+      "name": "Whisper small (int8)",
+      "dir": "sherpa-onnx-whisper-small",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2",
+      "archive_bytes": 640000000,
+      "streaming": false,
+      "rt_factor": 4,
+      "languages": [
+        "zh",
+        "en",
+        "multilingual"
+      ],
+      "note": "Multilingual offline recognition. Finalizes at pauses or release; set language to en for English.",
+      "verified": false,
+      "files": {}
+    }
+  },
+  "cloud_presets": {
+    "openai": {
+      "base_url": "https://api.openai.com/v1",
+      "model": "whisper-1",
+      "api_key_env": "OPENAI_API_KEY",
+      "note": "OpenAI-compatible hosted transcription; provider billing applies."
+    },
+    "groq": {
+      "base_url": "https://api.groq.com/openai/v1",
+      "model": "whisper-large-v3-turbo",
+      "api_key_env": "GROQ_API_KEY",
+      "note": "Hosted transcription; availability, model support, and billing depend on the provider."
+    },
+    "siliconflow": {
+      "base_url": "https://api.siliconflow.cn/v1",
+      "model": "FunAudioLLM/SenseVoiceSmall",
+      "api_key_env": "SILICONFLOW_API_KEY",
+      "note": "Hosted transcription; check provider model availability and billing."
+    },
+    "lan": {
+      "base_url": "http://192.168.1.10:8000/v1",
+      "model": "whisper-1",
+      "api_key_env": "",
+      "note": "Example LAN endpoint for a compatible self-hosted transcription server."
+    }
+  }
+}
