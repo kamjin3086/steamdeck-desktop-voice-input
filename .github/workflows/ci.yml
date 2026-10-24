@@ -26,6 +26,9 @@ jobs:
           desktop-file-validate Init.desktop
       - name: Run hardware-free tests
         run: |
+          python -m unittest discover -s tests -p test_model_switching.py
+          python -m unittest discover -s tests -p test_desktop_regressions.py
+          python -m unittest discover -s tests -p test_audio_boundaries.py
           python -m unittest discover -s tests -p test_hold_to_talk.py
           python -m unittest discover -s tests -p test_binding_dialog.py
           python -m unittest discover -s tests -p test_desktop_lifecycle.py

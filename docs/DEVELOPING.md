@@ -1,5 +1,7 @@
 # Development
 
+English | [简体中文](zh-CN/DEVELOPING.md)
+
 Python 3.10+ on Linux; SteamOS Desktop Mode is the target. Runtime dependencies are sherpa-onnx and PySide6-Essentials; input IO, HTTP, model management, and process ownership use the standard library. Install binary wheels; a compiler is not required.
 
 ```bash
@@ -18,6 +20,7 @@ python3 -m venv .venv
 - `backends/`: shared session interface, local sherpa-onnx, cloud/LAN WAV requests.
 - `models_registry.py`, `models.json`: download, required-file checks, optional SHA-256 validation.
 - `inject.py`, `uinput_kbd.py`: keyboard injection and Unicode clipboard paste.
+- `model_dialog.py`, `model_manager.py`: three language groups, cancelable preparation subprocess, visible progress, and commit-on-success selection.
 - `setup.py`, `runtime.py`: installation, shortcuts, per-checkout process ownership and stopping.
 
 A physical hold may contain many recognition sessions. Silence or a 60-second limit finishes the current session while retaining the physical hold. Preserve the audio cursor at segment boundaries so finalization/injection does not duplicate or skip buffered audio. Release finishes the last session. The model stays loaded in the worker across holds.
@@ -27,6 +30,9 @@ The GUI pauses the worker before binding capture, stores only a candidate, saves
 ## Automated tests without physical input
 
 ```bash
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p test_model_switching.py
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p test_desktop_regressions.py
+.venv/bin/python -m unittest discover -s tests -p test_audio_boundaries.py
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p test_hold_to_talk.py
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p test_binding_dialog.py
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p test_desktop_lifecycle.py
@@ -44,8 +50,10 @@ Several older test scripts execute at import and some require real devices, so u
 
 ## Changes and contributions
 
-Keep prose, UI labels, errors, comments, and test descriptions in English. Represent multilingual ASR/Unicode fixtures with Unicode escapes; preserving those samples is necessary for testing non-ASCII injection and recognition. Keep focused tests for behavior changes. Model files, recordings, local credentials, and transcript logs must remain untracked.
+Keep UI labels, errors, code comments, and test descriptions in English. Maintain English and Simplified Chinese companion documentation with reciprocal language links. Represent multilingual ASR/Unicode fixtures with Unicode escapes; preserving those samples is necessary for testing non-ASCII injection and recognition. Keep focused tests for behavior changes. Model files, recordings, local credentials, and transcript logs must remain untracked.
 
 To add a model, extend models.json with its upstream URL, directory, language/streaming metadata, and file hashes where known. The current local adapter supports transducer models with encoder/decoder/joiner files and Whisper with encoder/decoder/tokens. Load and decode a real sample before describing a new model as verified.
 
 MIT applies to application contributions. Model weights and dependencies retain their own upstream licenses; maintain THIRD_PARTY_NOTICES.md when adding dependencies or redistributing assets.
+
+Current GUI backends are SenseVoice, Qwen3-ASR, and Omnilingual CTC; legacy transducer/Whisper models remain compatible. Qwen3 requires conv_frontend, encoder, decoder and tokenizer files. Single-file models select the matching constructor from catalog metadata. Extraction and verification happen in staging before replacing an installation. Window close and desktop-session shutdown stop an isolated process group; bounded escalation also cleans up its recording subprocess.

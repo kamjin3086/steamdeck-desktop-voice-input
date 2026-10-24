@@ -18,7 +18,7 @@ python3 -c 'import sys; assert sys.version_info >= (3, 10), "Python 3.10+ is req
 if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
     python3 -m venv --clear .venv
 fi
-if ! .venv/bin/python -c 'import sherpa_onnx; from PySide6 import QtCore, QtWidgets, QtNetwork' >/dev/null 2>&1 \
+if ! .venv/bin/python -c 'import sherpa_onnx; assert hasattr(sherpa_onnx.OfflineRecognizer, "from_qwen3_asr"); from PySide6 import QtCore, QtWidgets, QtNetwork' >/dev/null 2>&1 \
     || ! .venv/bin/python -m pip check; then
     .venv/bin/python -m pip install --only-binary=:all: --upgrade --force-reinstall -r requirements.txt
 fi

@@ -53,6 +53,27 @@ class InstallationTest(unittest.TestCase):
         self.assertIn('Current activation button: F10. Hold to use; release to deactivate', output.getvalue())
         self.assertEqual(save.call_args.args[0]['trigger'], {'source': 'evdev-key', 'code': 68})
 
+    def test_default_install_has_no_model_prompt_and_preserves_gui_selection(self):
+        import contextlib
+        import io
+        from unittest.mock import MagicMock
+        for selected in (None, 'qwen3'):
+            cfg = {} if selected is None else {'asr': {'backend': 'local', 'model': selected}}
+            with patch.object(setup, 'load_config', return_value=cfg), \
+                 patch.object(setup, 'save_config') as save, \
+                 patch.object(setup, 'install_shortcut'), \
+                 patch.object(setup.registry, 'install') as install, \
+                 patch.object(setup, 'create_backend', return_value=MagicMock()), \
+                 patch.object(setup.subprocess, 'run'), \
+                 patch.object(setup.shutil, 'which', return_value='/usr/bin/tool'), \
+                 patch.object(setup.os, 'access', return_value=True), \
+                 patch.object(setup, 'find_deck_hidraws', return_value=['deck']), \
+                 patch('builtins.input', side_effect=AssertionError('installation must not prompt')), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(setup.main(['--no-launch']), 0)
+                self.assertEqual(install.call_args.args[0], selected or 'sensevoice')
+                self.assertEqual(save.call_args.args[0]['asr']['model'], selected or 'sensevoice')
+
     def test_partial_model_directory_fails_verification(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(models_registry, 'MODELS_DIR', temp):
             path = Path(models_registry.model_dir('bilingual'))

@@ -9,9 +9,13 @@ import shutil
 import tarfile
 import tempfile
 import urllib.request
+import urllib.error
+import time
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG_PATH = os.path.join(PROJECT_ROOT, "models.json")
+DEFAULT_MODEL = "sensevoice"
+
 MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 
 
@@ -22,6 +26,10 @@ def load_catalog() -> dict:
 
 def models() -> dict[str, dict]:
     return load_catalog().get("models", {})
+
+
+def selectable_models() -> dict[str, dict]:
+    return {name: spec for name, spec in models().items() if not spec.get("hidden")}
 
 
 def cloud_presets() -> dict[str, dict]:
@@ -66,10 +74,10 @@ def sha256(path: str, chunk: int = 1 << 20) -> str:
     return digest.hexdigest()
 
 
-def verify(name: str) -> list[str]:
+def verify(name: str, *, path: str | None = None) -> list[str]:
     """Return validation problems; an empty list means verification passed."""
     spec = get(name)
-    path = model_dir(name)
+    path = path or model_dir(name)
     problems: list[str] = []
     if not os.path.isdir(path):
         return [f"Directory does not exist: {path}"]
@@ -99,19 +107,33 @@ def remove(name: str) -> bool:
     return True
 
 
-def install(name: str, on_progress=None) -> str:
+def open_download(url, on_phase):
+    for attempt in range(3):
+        try:
+            return urllib.request.urlopen(url, timeout=60)
+        except urllib.error.URLError as exc:
+            if attempt == 2 or (isinstance(exc, urllib.error.HTTPError) and exc.code < 500 and exc.code != 429):
+                raise
+            on_phase("retrying")
+            time.sleep(attempt + 1)
+
+
+def install(name: str, on_progress=None, on_phase=None) -> str:
     """Download and extract a model; report progress as completed and total bytes."""
     spec = get(name)
+    phase = on_phase or (lambda _name: None)
+    phase("checking")
     os.makedirs(MODELS_DIR, exist_ok=True)
     target_dir = model_dir(name)
     if is_installed(name) and not verify(name):
         return target_dir
 
+    phase("connecting")
     fd, archive = tempfile.mkstemp(suffix=".tar.bz2", dir=MODELS_DIR)
     os.close(fd)
     part = archive + ".part"
     try:
-        with urllib.request.urlopen(spec["url"], timeout=60) as resp, \
+        with open_download(spec["url"], phase) as resp, \
                 open(part, "wb") as out:
             total = int(resp.headers.get("Content-Length") or 0)
             done = 0
@@ -125,15 +147,31 @@ def install(name: str, on_progress=None) -> str:
                     on_progress(done, total)
         os.replace(part, archive)
 
+        phase("extracting")
         with tarfile.open(archive, "r:bz2") as tar:
             tmpdir = tempfile.mkdtemp(dir=MODELS_DIR)
             try:
                 tar.extractall(tmpdir, filter="data")
                 inner = os.path.join(tmpdir, spec["dir"])
                 source = inner if os.path.isdir(inner) else tmpdir
-                if os.path.isdir(target_dir):
-                    shutil.rmtree(target_dir)
-                shutil.move(source, target_dir)
+                phase("verifying")
+                problems = verify(name, path=source)
+                if problems:
+                    raise RuntimeError("Model verification failed: " + "; ".join(problems))
+                # Publish only a complete model; retain the prior copy on error.
+                backup = tempfile.mkdtemp(prefix="backup-", dir=MODELS_DIR)
+                previous = os.path.join(backup, "model")
+                try:
+                    if os.path.isdir(target_dir):
+                        os.replace(target_dir, previous)
+                    try:
+                        os.replace(source, target_dir)
+                    except BaseException:
+                        if os.path.isdir(previous):
+                            os.replace(previous, target_dir)
+                        raise
+                finally:
+                    shutil.rmtree(backup, ignore_errors=True)
             finally:
                 shutil.rmtree(tmpdir, ignore_errors=True)
     finally:
@@ -141,6 +179,7 @@ def install(name: str, on_progress=None) -> str:
             if os.path.exists(path):
                 os.unlink(path)
 
+    phase("verifying")
     problems = verify(name)
     if problems:
         raise RuntimeError("Model verification failed: " + "; ".join(problems))

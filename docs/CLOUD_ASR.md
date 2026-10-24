@@ -1,5 +1,7 @@
 # Cloud and LAN transcription
 
+English | [简体中文](zh-CN/CLOUD_ASR.md)
+
 Local mode is the default. Cloud mode buffers a segment as PCM, packages it as WAV, and sends it to an OpenAI-compatible transcription endpoint. It has no partial-transcript support. Audio leaves the machine when you select a remote endpoint; provider accounts, model access, costs, and availability are managed separately.
 
 Example LAN configuration:

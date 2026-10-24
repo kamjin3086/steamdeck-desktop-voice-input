@@ -1,5 +1,6 @@
 """Native desktop window owning a single recognition subprocess."""
 import signal
+import os
 import sys
 
 from PySide6.QtCore import QProcess, QTimer, Qt
@@ -9,6 +10,9 @@ from PySide6.QtWidgets import (QApplication, QDialog, QDialogButtonBox, QHBoxLay
                               QMenu, QPlainTextEdit, QPushButton, QSystemTrayIcon,
                               QVBoxLayout, QWidget)
 
+from . import models_registry as registry
+from .ui_controls import CommandButton
+from .model_dialog import ModelDialog
 from .bind import binding_label
 from .binding_capture import BindingCapture
 from .hidraw import load_config, save_config
@@ -35,8 +39,10 @@ class BindingDialog(QDialog):
         self.detected = QLabel('New button: waiting for input')
         layout.addWidget(self.detected)
         self.buttons = QDialogButtonBox()
-        self.confirm = self.buttons.addButton('Confirm', QDialogButtonBox.AcceptRole)
-        self.cancel = self.buttons.addButton('Cancel', QDialogButtonBox.RejectRole)
+        self.confirm = CommandButton('Confirm')
+        self.buttons.addButton(self.confirm, QDialogButtonBox.AcceptRole)
+        self.cancel = CommandButton('Cancel')
+        self.buttons.addButton(self.cancel, QDialogButtonBox.RejectRole)
         for button in (self.confirm, self.cancel):
             button.setMinimumHeight(38)
             button.setAutoDefault(False)
@@ -130,10 +136,15 @@ class Window(QMainWindow):
         self.model = QLabel()
         self.model.setWordWrap(True)
         layout.addWidget(self.model)
+        self.model_button = CommandButton('Change model / languages')
+        self.model_button.setMinimumHeight(40)
+        self.model_button.clicked.connect(self.change_model)
+        layout.addWidget(self.model_button)
+        self.refresh_model()
         row = QHBoxLayout()
-        self.start_button = QPushButton('Start recognition')
-        self.stop_button = QPushButton('Stop recognition')
-        self.bind_button = QPushButton('Rebind button')
+        self.start_button = CommandButton('Start recognition')
+        self.stop_button = CommandButton('Stop recognition')
+        self.bind_button = CommandButton('Rebind button')
         for button in (self.start_button, self.stop_button, self.bind_button):
             button.setMinimumHeight(42)
             row.addWidget(button)
@@ -143,12 +154,17 @@ class Window(QMainWindow):
         self.log.setPlaceholderText('Startup details, transcripts, and errors appear here.')
         self.log.document().setMaximumBlockCount(500)
         layout.addWidget(self.log, 1)
-        self.exit_button = QPushButton('Quit application')
+        self.exit_button = CommandButton('Quit application')
         self.exit_button.setMinimumHeight(38)
         self.exit_button.clicked.connect(self.shutdown)
         layout.addWidget(self.exit_button)
         self.worker = QProcess(self)
         self.worker.setWorkingDirectory(str(ROOT))
+        params = QProcess.UnixProcessParameters()
+        params.flags = QProcess.UnixProcessFlag.CreateNewSession
+        self.worker.setUnixProcessParameters(params)
+        self.stop_requested = False
+        self.worker.started.connect(self.worker_started)
         self.worker.setProcessChannelMode(QProcess.MergedChannels)
         self.worker.readyReadStandardOutput.connect(self.read_output)
         self.worker.finished.connect(self.finished)
@@ -157,6 +173,8 @@ class Window(QMainWindow):
         self.stop_button.clicked.connect(self.stop)
         self.bind_button.clicked.connect(self.bind)
         self.binding_dialog = None
+        self.model_dialog = None
+        self.resume_after_model = False
         self.resume_after_binding = False
         self.restart_after_stop = False
         self.pending = b''
@@ -182,6 +200,7 @@ class Window(QMainWindow):
         self.activateWindow()
 
     def launch(self, args):
+        self.stop_requested = False
         self.pending = b''
         self.start_button.setEnabled(False)
         self.bind_button.setEnabled(True)
@@ -191,12 +210,12 @@ class Window(QMainWindow):
     def start(self):
         if self.worker.state() != QProcess.NotRunning:
             return
-        if self.binding_dialog is not None:
+        if self.binding_dialog is not None or self.model_dialog is not None:
             return
         self.restart_after_stop = False
         self.refresh_binding()
         cfg = load_config()
-        self.model.setText(f"Current model: {cfg.get('asr', {}).get('model', 'zh14m')} - Run init.sh to change models")
+        self.refresh_model()
         self.status.setText('Loading model...')
         self.launch(['run'])
 
@@ -205,6 +224,9 @@ class Window(QMainWindow):
         self.hint.setText(f'Current activation button: {label}\nHold to dictate; release to deactivate. Pauses finalize text segments.')
 
     def bind(self):
+        if self.model_dialog is not None:
+            self.model_dialog.raise_()
+            return
         if self.binding_dialog is not None:
             self.binding_dialog.raise_()
             return
@@ -235,11 +257,72 @@ class Window(QMainWindow):
                 self.restart_after_stop = True
         self.resume_after_binding = False
 
+    def refresh_model(self):
+        cfg = load_config().get('asr', {})
+        name = cfg.get('model', registry.DEFAULT_MODEL)
+        if cfg.get('backend', 'local') == 'local' and name in registry.models():
+            spec = registry.get(name)
+            self.model.setText(f"Speech languages: {spec['name']}\nEngine: {spec.get('engine', spec['name'])}")
+        else:
+            self.model.setText(f"Speech service: {cfg.get('backend')} / {name}")
+
+    def change_model(self):
+        if self.binding_dialog is not None:
+            self.binding_dialog.raise_()
+            return
+        if self.model_dialog is not None:
+            self.model_dialog.raise_()
+            return
+        self.restart_after_stop = False
+        self.resume_after_model = self.worker.state() != QProcess.NotRunning
+        self.model_dialog = ModelDialog(self)
+        self.model_dialog.finished.connect(self.model_done)
+        self.model_dialog.open()
+        if self.resume_after_model:
+            self.stop()
+        else:
+            self.model_dialog.allow_switch()
+
+    def model_done(self, result):
+        dialog = self.model_dialog
+        self.model_dialog = None
+        self.refresh_model()
+        self.log.appendPlainText('Speech model selected.' if result == QDialog.Accepted else 'Model change canceled; previous selection kept.')
+        dialog.deleteLater()
+        if self.exiting:
+            self.maybe_quit()
+        elif self.resume_after_model:
+            if self.worker.state() == QProcess.NotRunning:
+                self.start()
+            else:
+                self.restart_after_stop = True
+        self.resume_after_model = False
+
+    def worker_started(self):
+        if self.stop_requested or self.exiting:
+            self.stop()
+
     def stop(self):
         if self.worker.state() != QProcess.NotRunning:
+            self.stop_requested = True
             self.status.setText('Stopping...')
             self.stop_button.setEnabled(False)
+            pid = int(self.worker.processId())
             self.worker.terminate()
+            QTimer.singleShot(2500, lambda pid=pid: self.force_stop_worker(pid))
+
+    def force_stop_worker(self, pid):
+        if pid <= 0 or self.worker.state() == QProcess.NotRunning or int(self.worker.processId()) != pid:
+            return
+        # Native decoding may defer SIGTERM. The Qt worker owns a new session;
+        # kill its group so pw-record cannot survive a forced desktop shutdown.
+        try:
+            if os.getpgid(pid) == pid:
+                os.killpg(pid, signal.SIGKILL)
+            else:
+                self.worker.kill()
+        except ProcessLookupError:
+            pass
 
     def process_error(self, error):
         self.log.appendPlainText(f'Process error: {self.worker.errorString()}')
@@ -269,29 +352,33 @@ class Window(QMainWindow):
         self.stop_button.setEnabled(False)
         self.status.setText('Stopped' if code == 0 else 'Startup or recognition failed - see the log')
         if self.exiting:
-            self.app.quit()
+            self.maybe_quit()
+        elif self.model_dialog is not None:
+            self.model_dialog.allow_switch()
         elif self.binding_dialog is not None:
             self.binding_dialog.listen()
         elif self.restart_after_stop:
             self.restart_after_stop = False
             self.start()
 
+    def maybe_quit(self):
+        preparing = self.model_dialog is not None and self.model_dialog.process.state() != QProcess.NotRunning
+        if self.exiting and self.worker.state() == QProcess.NotRunning and not preparing:
+            self.app.quit()
+
     def shutdown(self):
         self.exiting = True
         if self.binding_dialog is not None:
             self.binding_dialog.reject()
-        if self.worker.state() == QProcess.NotRunning:
-            self.app.quit()
-        else:
-            self.stop()
+        if self.model_dialog is not None:
+            self.model_dialog.reject()
+        self.stop()
+        self.maybe_quit()
 
     def closeEvent(self, event):
-        # A taskbar entry remains available even on desktops without a tray.
-        if not self.exiting:
-            event.ignore()
-            self.showMinimized()
-        else:
-            event.accept()
+        # Accept the desktop's close request, including session/logout shutdown.
+        self.shutdown()
+        event.accept()
 
 
 def main():
@@ -316,6 +403,7 @@ def main():
         if not server.listen(socket_path()):
             raise RuntimeError(server.errorString())
     window = Window(app)
+    app.commitDataRequest.connect(lambda _manager: window.shutdown())
     connections = set()
 
     def connected():

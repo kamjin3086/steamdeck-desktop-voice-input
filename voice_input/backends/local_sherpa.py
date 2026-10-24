@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import time
 
 from .base import SAMPLE_RATE, Backend, Session, pcm16_to_float
@@ -16,6 +17,22 @@ def _pick(pattern: str) -> str | None:
 
 def find_model_files(model_dir: str) -> dict[str, str]:
     """Find encoder, decoder, optional joiner, and tokens; prefer int8 weights."""
+    frontend = _pick(os.path.join(model_dir, "conv_frontend*.onnx"))
+    if frontend:
+        files = {"conv_frontend": frontend,
+                 "encoder": _pick(os.path.join(model_dir, "encoder.int8.onnx")),
+                 "decoder": _pick(os.path.join(model_dir, "decoder.int8.onnx")),
+                 "tokenizer": os.path.join(model_dir, "tokenizer")}
+        missing = [k for k, v in files.items() if not v or not os.path.exists(v)]
+        missing += [f"tokenizer/{f}" for f in ("vocab.json", "merges.txt", "tokenizer_config.json")
+                    if not os.path.isfile(os.path.join(model_dir, "tokenizer", f))]
+        if missing:
+            raise FileNotFoundError(f"{model_dir} missing model files: {missing}")
+        return files
+    tokens = _pick(os.path.join(model_dir, "*tokens.txt"))
+    single = _pick(os.path.join(model_dir, "model.int8.onnx")) or _pick(os.path.join(model_dir, "model.onnx"))
+    if single and tokens:
+        return {"model": single, "tokens": tokens}
     files = {
         "tokens": _pick(os.path.join(model_dir, "*tokens.txt")),
         "encoder": _pick(os.path.join(model_dir, "*encoder*.int8.onnx"))
@@ -35,12 +52,13 @@ def find_model_files(model_dir: str) -> dict[str, str]:
 
 class SherpaSession(Session):
     def __init__(self, recognizer, streaming: bool, on_partial=None,
-                 throttle: float = 0.12, debug: bool = False):
+                 throttle: float = 0.12, debug: bool = False, clean_tags: bool = False):
         self.rec = recognizer
         self.streaming = streaming
         self.on_partial = on_partial
         self.throttle = throttle
         self.debug = debug
+        self.clean_tags = clean_tags
         self.stream = recognizer.create_stream()
         self._last_decode = 0.0
         self._buffered: list[float] = []
@@ -70,17 +88,17 @@ class SherpaSession(Session):
                     self.on_partial(text)
 
     def finish(self) -> str:
-        if not self.streaming:
-            self.stream.accept_waveform(SAMPLE_RATE, self._buffered)
-
-        self.stream.accept_waveform(SAMPLE_RATE, [0.0] * int(0.4 * SAMPLE_RATE))
         if self.streaming:
+            self.stream.accept_waveform(SAMPLE_RATE, [0.0] * int(0.4 * SAMPLE_RATE))
             self.stream.input_finished()
             self._decode()
             return (self.rec.get_result(self.stream) or "").strip()
+        self.stream.accept_waveform(SAMPLE_RATE, self._buffered)
         self.rec.decode_stream(self.stream)
         self._buffered.clear()
-        return (self.stream.result.text or "").strip()
+        text = self.stream.result.text or ""
+        # SenseVoice event/language/emotion markers are metadata, not dictation.
+        return (re.sub(r"<\|[^|]*\|>", "", text) if self.clean_tags else text).strip()
 
     def cancel(self) -> None:
         self._buffered.clear()
@@ -90,8 +108,8 @@ class LocalSherpaBackend(Backend):
     name = "local"
 
     def __init__(self, model_dir: str, num_threads: int = 2,
-                 language: str = "zh", provider: str = "cpu",
-                 debug: bool = False):
+                 language: str = "auto", provider: str = "cpu",
+                 debug: bool = False, model_type: str | None = None):
         import sherpa_onnx
 
         self.sherpa = sherpa_onnx
@@ -102,7 +120,25 @@ class LocalSherpaBackend(Backend):
         self.streaming = bool(files.get("joiner"))
         self.kind = "online-transducer" if self.streaming else "offline"
 
-        if self.streaming:
+        self.sensevoice = "model" in files and model_type != "omnilingual"
+        if "conv_frontend" in files:
+            self.rec = sherpa_onnx.OfflineRecognizer.from_qwen3_asr(
+                conv_frontend=files["conv_frontend"], encoder=files["encoder"],
+                decoder=files["decoder"], tokenizer=files["tokenizer"], max_new_tokens=256,
+                num_threads=num_threads, provider=provider, debug=debug,
+            )
+        elif model_type == "omnilingual":
+            self.rec = sherpa_onnx.OfflineRecognizer.from_omnilingual_asr_ctc(
+                model=files["model"], tokens=files["tokens"],
+                num_threads=num_threads, provider=provider, debug=debug,
+            )
+        elif self.sensevoice:
+            self.rec = sherpa_onnx.OfflineRecognizer.from_sense_voice(
+                model=files["model"], tokens=files["tokens"],
+                num_threads=num_threads, language=language or "auto",
+                use_itn=True, provider=provider, debug=debug,
+            )
+        elif self.streaming:
             self.rec = sherpa_onnx.OnlineRecognizer.from_transducer(
                 tokens=files["tokens"],
                 encoder=files["encoder"],
@@ -122,7 +158,7 @@ class LocalSherpaBackend(Backend):
                 tokens=files["tokens"],
                 num_threads=num_threads,
                 decoding_method="greedy_search",
-                language=language,
+                language="" if language == "auto" else language,
                 task="transcribe",
                 provider=provider,
                 debug=debug,
@@ -134,7 +170,7 @@ class LocalSherpaBackend(Backend):
 
     def open_session(self, on_partial=None) -> SherpaSession:
         return SherpaSession(self.rec, self.streaming, on_partial,
-                             debug=self.debug)
+                             debug=self.debug, clean_tags=self.sensevoice)
 
     def describe(self) -> str:
         mode = "streaming" if self.streaming else "offline"

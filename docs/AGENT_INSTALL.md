@@ -1,5 +1,7 @@
 # Install or repair with an agent
 
+English | [简体中文](zh-CN/AGENT_INSTALL.md)
+
 Use this procedure when a user gives you the repository URL and asks you to install it. The intended host is the user's Steam Deck in **Desktop Mode**. A remote agent may prepare files, but final GUI/audio checks must run in the user's graphical session. Gaming Mode is unsupported.
 
 ## 1. Inspect the target
@@ -18,9 +20,9 @@ Use a writable user directory, such as `~/Applications/steamdeck-desktop-voice-i
 
 Completion: the target host/session and checkout are identified. If you are on another machine or a non-graphical SSH session, state that limitation before reporting device readiness.
 
-## 2. Choose recognition language and install
+## 2. Install the default language group
 
-Use a model appropriate to the user's requested language. If no language preference can be inferred, explain that `zh14m` is Chinese-only and ask for the preferred language. Available choices are listed in README.md and `models.json`.
+A fresh installation automatically uses SenseVoice for Mandarin, English, Cantonese, Japanese, and Korean. Do not prompt the user to pick a model during installation. The GUI provides three language groups afterward: Common languages (SenseVoice), Global languages (Qwen3-ASR), and More languages (Omnilingual ASR).
 
 For a new checkout:
 
@@ -29,15 +31,10 @@ mkdir -p ~/Applications
 cd ~/Applications
 git clone https://github.com/kamjin3086/steamdeck-desktop-voice-input.git
 cd steamdeck-desktop-voice-input
+VOICE_INPUT_NO_PAUSE=1 bash init.sh --no-launch
 ```
 
-Run the installer without terminal prompts or automatic launch. Example for English:
-
-```bash
-VOICE_INPUT_NO_PAUSE=1 bash init.sh --model whisper-small --language en --no-launch
-```
-
-For Chinese use `--model zh14m --language zh`; for Chinese/English streaming use `--model bilingual`. `--language` is primarily relevant to Whisper and cloud backends. Model selection without `--model` is interactive, so always provide it for unattended installation.
+Repeat installation preserves a previously selected local model. `--model sensevoice` can explicitly restore the default if requested; other model overrides are advanced CLI options, not a required installation decision. Language detection is automatic for the three GUI groups.
 
 The installer checks/repairs `.venv`, installs binary Python packages, verifies/downloads the model, loads it, preserves an existing trigger binding, creates or repairs the desktop/application-menu shortcut, and checks runtime prerequisites. Existing valid model files are reused. Downloads can be large; do not download every model just to install one.
 
@@ -49,9 +46,9 @@ Completion: the installer exits zero, or you record the exact remaining blocker 
 
 ```bash
 .venv/bin/python -m pip check
-./run.sh models verify whisper-small
+./run.sh models verify sensevoice
 ./run.sh --config
-./run.sh --model whisper-small --language en test-asr /path/to/user-approved-16khz-mono-pcm16.wav
+./run.sh --model sensevoice --language auto test-asr /path/to/user-approved-16khz-mono-pcm16.wav
 ```
 
 Substitute the selected model. Only run the audio-file check if a suitable file is available; do not invent a passing result. `models verify` checks known hashes where supplied and required model files otherwise. The installer additionally loads the recognizer; it does not certify every possible transcript.
@@ -67,6 +64,8 @@ Completion: dependency validation, selected model verification/loading, persiste
 Launch `./desktop.sh`. Confirm that the window opens, a taskbar entry is available, minimizing keeps it alive, and a second launch reveals the existing window.
 
 Ask the user to focus a disposable text field and hold L5 while saying two phrases with a pause between them. They should keep holding through the pause, then release. Check that the phrases are inserted once, capture continues across the pause, and release ends recording. Confirm that changing the foreground input field changes the destination of subsequent injected text.
+
+Verify **Change model / languages** displays three groups and language descriptions, then visible download/progress states when selecting a missing model. Cancellation/failure must retain the previous selection, success must persist it, and switching back should reuse cached files. Close the window using X and confirm the application exits; minimizing should keep it running.
 
 To test rebinding, use **Rebind button**. Verify the candidate label, then test **Cancel** first: the old binding must remain. If the user wants a replacement, repeat and choose **Confirm**, then verify the new button with a live recording. Custom bindings must survive rerunning the installer.
 

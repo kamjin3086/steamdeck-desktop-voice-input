@@ -1,6 +1,184 @@
 {
   "_comment": "Shared model and service catalog used by the GUI and CLI.",
   "models": {
+    "sensevoice": {
+      "name": "Common languages (recommended)",
+      "dir": "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2",
+      "archive_bytes": 163100000,
+      "streaming": false,
+      "languages": [
+        "zh",
+        "en",
+        "yue",
+        "ja",
+        "ko"
+      ],
+      "language_names": [
+        "Mandarin Chinese",
+        "English",
+        "Cantonese",
+        "Japanese",
+        "Korean"
+      ],
+      "default_language": "auto",
+      "note": "Automatic detection of five everyday languages. Punctuation and text normalization. Also suitable for Chinese/English dictation; mixed-language accuracy depends on the recording.",
+      "files": {
+        "model.int8.onnx": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+        "tokens.txt": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+      },
+      "engine": "SenseVoice Small INT8",
+      "model_type": "sensevoice",
+      "source_url": "https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html"
+    },
+    "qwen3": {
+      "name": "Global languages",
+      "engine": "Qwen3-ASR 0.6B INT8",
+      "model_type": "qwen3",
+      "dir": "sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2",
+      "archive_bytes": 878702423,
+      "streaming": false,
+      "languages": [
+        "zh",
+        "en",
+        "yue",
+        "ar",
+        "de",
+        "fr",
+        "es",
+        "pt",
+        "id",
+        "it",
+        "ko",
+        "ru",
+        "th",
+        "vi",
+        "ja",
+        "tr",
+        "hi",
+        "ms",
+        "nl",
+        "sv",
+        "da",
+        "fi",
+        "pl",
+        "cs",
+        "fil",
+        "fa",
+        "el",
+        "hu",
+        "mk",
+        "ro"
+      ],
+      "language_names": [
+        "Chinese",
+        "English",
+        "Cantonese",
+        "Arabic",
+        "German",
+        "French",
+        "Spanish",
+        "Portuguese",
+        "Indonesian",
+        "Italian",
+        "Korean",
+        "Russian",
+        "Thai",
+        "Vietnamese",
+        "Japanese",
+        "Turkish",
+        "Hindi",
+        "Malay",
+        "Dutch",
+        "Swedish",
+        "Danish",
+        "Finnish",
+        "Polish",
+        "Czech",
+        "Filipino",
+        "Persian",
+        "Greek",
+        "Hungarian",
+        "Macedonian",
+        "Romanian"
+      ],
+      "default_language": "auto",
+      "note": "30 major languages with automatic language detection. Choose when you regularly use languages beyond the default five. Larger download and higher decoding cost; not a Deck speed guarantee.",
+      "source_url": "https://k2-fsa.github.io/sherpa/onnx/qwen3-asr/pretrained.html",
+      "files": {
+        "conv_frontend.onnx": "d22dc4423e0940e49884e903d2ea2f7e5567c14fc1aed97e4e26d6b8f208ef9e",
+        "encoder.int8.onnx": "60748d3e6744a57c9c91e1b17424a6c2990567e8adceb0783940c03ed98fa9d9",
+        "decoder.int8.onnx": "4f6885be5959ae26af3089d38ee7972c5fafbeeb1cf8d5e76eab6d8b61ca5771",
+        "tokenizer/vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+        "tokenizer/merges.txt": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+        "tokenizer/tokenizer_config.json": "4942d005604266809309cabc9f4e9cb89ce855d59b14681fdc0e1cc62ea26c4c"
+      }
+    },
+    "omnilingual": {
+      "name": "More languages",
+      "engine": "Omnilingual ASR 300M INT8",
+      "model_type": "omnilingual",
+      "dir": "sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12.tar.bz2",
+      "archive_bytes": 292600000,
+      "streaming": false,
+      "languages": [
+        "1600+"
+      ],
+      "language_names": [
+        "1600+ languages, including many low-resource languages; see the upstream coverage list."
+      ],
+      "default_language": "auto",
+      "note": "For languages outside the other groups. Broad coverage does not mean better accuracy for Chinese, English or mixed speech. Automatic recognition; no translation.",
+      "source_url": "https://k2-fsa.github.io/sherpa/onnx/omnilingual-asr/models.html",
+      "files": {
+        "model.int8.onnx": "e7c4e54ee4c4c47829cc6667d5d00ed8ea7bef1dcfeef0fce766f77752a2726c",
+        "tokens.txt": "a7a044c52cb29cbe8b0dc1953e92cefd4ca16b0ed968177b6beab21f9a7d0b31"
+      }
+    },
+    "bilingual": {
+      "name": "Chinese + English - Zipformer",
+      "dir": "sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16.tar.bz2",
+      "archive_bytes": 200000000,
+      "streaming": true,
+      "rt_factor": 10,
+      "languages": [
+        "zh",
+        "en"
+      ],
+      "note": "Streaming Chinese/English speech, including mixed phrases. Live partial transcripts; useful for switching between Chinese and English.",
+      "verified": false,
+      "files": {},
+      "language_names": [
+        "Mandarin Chinese",
+        "English"
+      ],
+      "default_language": "auto",
+      "hidden": true
+    },
+    "whisper-small": {
+      "name": "More languages - Whisper small",
+      "dir": "sherpa-onnx-whisper-small",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2",
+      "archive_bytes": 640000000,
+      "streaming": false,
+      "rt_factor": 4,
+      "languages": [
+        "zh",
+        "en",
+        "multilingual"
+      ],
+      "note": "Broader multilingual coverage with automatic language detection. Offline per segment; slower than streaming models and may hallucinate on noise. Use for languages outside SenseVoice's five languages.",
+      "verified": false,
+      "files": {},
+      "language_names": [
+        "Multilingual (including European and Asian languages)"
+      ],
+      "default_language": "auto",
+      "hidden": true
+    },
     "zh14m": {
       "name": "Zipformer Chinese 14M (int8)",
       "dir": "sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23",
@@ -12,45 +190,15 @@
       "languages": [
         "zh"
       ],
-      "note": "Default lightweight Chinese model. For English dictation choose a bilingual or multilingual model.",
+      "note": "Legacy Chinese-only model, retained for existing installations.",
       "verified": true,
       "files": {
         "encoder-epoch-99-avg-1.int8.onnx": "1c556ea57cec304e55ec4b72e52c1cc098bb01476ed7d90f3de939fe126487b1",
         "decoder-epoch-99-avg-1.int8.onnx": "22f123bb8cba9b38974b3df18a3f45e7081f4985ebb2e075d9f21f618c468bbf",
         "joiner-epoch-99-avg-1.int8.onnx": "a7cf9d82757bdcf786059454495a9ca95e4bd7347f72473fc08d794475c36169",
         "tokens.txt": "8b294db9045d6e5f94647f4c1eec1af4da143a75053c399611444b378ff966ac"
-      }
-    },
-    "bilingual": {
-      "name": "Zipformer Chinese/English small",
-      "dir": "sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16",
-      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16.tar.bz2",
-      "archive_bytes": 200000000,
-      "streaming": true,
-      "rt_factor": 10,
-      "languages": [
-        "zh",
-        "en"
-      ],
-      "note": "Streaming Chinese and English. Not benchmarked on the release test host.",
-      "verified": false,
-      "files": {}
-    },
-    "whisper-small": {
-      "name": "Whisper small (int8)",
-      "dir": "sherpa-onnx-whisper-small",
-      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2",
-      "archive_bytes": 640000000,
-      "streaming": false,
-      "rt_factor": 4,
-      "languages": [
-        "zh",
-        "en",
-        "multilingual"
-      ],
-      "note": "Multilingual offline recognition. Finalizes at pauses or release; set language to en for English.",
-      "verified": false,
-      "files": {}
+      },
+      "hidden": true
     }
   },
   "cloud_presets": {

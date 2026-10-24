@@ -7,6 +7,8 @@ import os
 import struct
 import subprocess
 import tempfile
+import shutil
+import time
 import wave
 from array import array
 
@@ -37,10 +39,10 @@ class Beep:
         self.enabled = enabled and bool(os.environ.get("PIPEWIRE_REMOTE", "1"))
         self._start = None
         self._stop = None
-        self._procs: list[subprocess.Popen] = []
+        self._directory = None
         if not self.enabled:
             return
-        d = tempfile.mkdtemp(prefix="voice-input-beep-")
+        d = self._directory = tempfile.mkdtemp(prefix="voice-input-beep-")
         self._start = os.path.join(d, "start.wav")
         self._stop = os.path.join(d, "stop.wav")
         try:
@@ -52,13 +54,13 @@ class Beep:
     def _play(self, path: str | None) -> None:
         if not self.enabled or not path:
             return
-        self._procs = [p for p in self._procs if p.poll() is None]
         try:
-            self._procs.append(
-                subprocess.Popen(["pw-play", path], stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL)
-            )
-        except OSError:
+            subprocess.run(["pw-play", path], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=2, check=True)
+            # Let speaker echo and queued microphone frames settle before the
+            # caller establishes the next audio boundary.
+            time.sleep(0.20)
+        except (OSError, subprocess.SubprocessError):
             self.enabled = False
 
     def start(self) -> None:
@@ -66,3 +68,8 @@ class Beep:
 
     def stop(self) -> None:
         self._play(self._stop)
+
+    def close(self):
+        if self._directory:
+            shutil.rmtree(self._directory, ignore_errors=True)
+            self._directory = None

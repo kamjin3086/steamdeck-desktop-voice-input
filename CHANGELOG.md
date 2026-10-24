@@ -1,5 +1,16 @@
 # Changelog
 
+English | [简体中文](CHANGELOG.zh-CN.md)
+
+## 0.2.0 - 2026-10-24
+
+- Install SenseVoice automatically; offer three language groups in the GUI: Common languages, Global languages (Qwen3-ASR), and More languages (Omnilingual ASR).
+- Show download byte/percentage progress and preparation phases; preserve the previous model on cancellation or failure and reuse cached models.
+- Prevent controller keyboard mappings from activating focused UI commands or reopening rebinding.
+- Default feedback tones to off; exclude pre-activation audio and finalize before optional release tones.
+- Make window X exit cleanly and bound worker shutdown for desktop-session switching.
+- Add Simplified Chinese README, installation/agent guides, configuration, troubleshooting, development, cloud, roadmap, changelog, and third-party notices with reciprocal language links.
+
 ## 0.1.0 - 2026-10-24
 
 Initial English-language open-source release under MIT.

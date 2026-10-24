@@ -30,8 +30,8 @@ MAX_DURATION = 60.0
 MIN_PEAK = 0.02
 
 DEFAULT_AUTO_STOP = {"enabled": True, "silence_ms": 600, "threshold": 0.02}
-DEFAULT_ASR = {"backend": "local", "model": "zh14m", "num_threads": 2,
-               "language": "zh"}
+DEFAULT_ASR = {"backend": "local", "model": registry.DEFAULT_MODEL, "num_threads": 2,
+               "language": "auto"}
 
 
 def say(msg: str) -> None:
@@ -88,7 +88,7 @@ def cmd_run(args) -> int:
 
     injector = Injector(restore_clipboard=not args.no_restore_clipboard,
                         debug=args.debug)
-    beep = Beep(enabled=not args.no_beep)
+    beep = Beep(enabled=args.beep and not args.no_beep)
     hud = RecorderHUD(meter=args.meter, partial=show_partial)
     plog = PartialLog(args.partial_log)
     session = None
@@ -116,24 +116,25 @@ def cmd_run(args) -> int:
                 for edge in source.poll(timeout=0.02):
                     if edge == "press" and not recording:
                         session = backend.open_session(on_partial=on_partial)
-                        cursor = max(0, stream.position()
-                                     - int(stream.preroll * SAMPLE_RATE * 2))
+                        beep.start()
+                        # Capture only audio after activation, excluding the
+                        # optional cue and all pre-activation buffer contents.
+                        cursor = stream.position()
                         recording = True
                         started_at = time.monotonic()
                         peak = 0.0
                         stopper.reset()
                         partial_text = ""
                         plog.write("start")
-                        beep.start()
                         say("● Recording...")
                     elif edge == "release" and recording:
                         recording = False
-                        beep.stop()
                         hud.done()
                         session, text = finish_session(
                             session, stream, cursor, peak, started_at, args,
                             plog)
                         session = None
+                        beep.stop()
                         if text:
                             inject(injector, text, args)
 
@@ -181,6 +182,7 @@ def cmd_run(args) -> int:
         if session is not None:
             session.cancel()
         hud.done()
+        beep.close()
         injector.close()
     return 0
 
@@ -231,7 +233,7 @@ def cmd_models(args) -> int:
     catalog = registry.models()
     if action == "list":
         installed = registry.installed_models()
-        for name, spec in catalog.items():
+        for name, spec in registry.selectable_models().items():
             mark = "✓" if name in installed else " "
             stream = "streaming" if spec.get("streaming") else "offline"
             langs = ",".join(spec.get("languages") or [])
@@ -244,9 +246,9 @@ def cmd_models(args) -> int:
             print(f"  {name:12} {spec['model']:32} {spec['base_url']}")
         return 0
 
-    names = args.names or ([] if action == "list" else ["zh14m"])
+    names = args.names or ([] if action == "list" else [registry.DEFAULT_MODEL])
     if action == "verify":
-        names = names if args.names else list(catalog)
+        names = names if args.names else list(registry.selectable_models())
         bad = 0
         for name in names:
             problems = registry.verify(name)
@@ -355,7 +357,7 @@ def cmd_test_asr(args) -> int:
     backend = create_backend(cfg["asr"], debug=args.debug)
     say(f"[asr] {backend.describe()}  partial="
         f"{'supported' if backend.supports_partial else 'unsupported'}")
-    target = args.wav or os.path.join(registry.model_dir("zh14m"), "test_wavs")
+    target = args.wav or os.path.join(registry.model_dir(cfg['asr']['model']), "test_wavs")
     paths = ([target] if os.path.isfile(target)
              else sorted(glob.glob(os.path.join(target, "*.wav"))))
     if not paths:
@@ -383,7 +385,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Local model threads (default: 2)")
     p.add_argument("--backend", choices=["local", "cloud"], default=None)
     p.add_argument("--language", default=None, help="Recognition language hint, e.g. en or zh")
-    p.add_argument("--model", default=None, help="Local model name, e.g. zh14m")
+    p.add_argument("--model", default=None, help="Local model name, e.g. sensevoice")
     p.add_argument("--preset", default=None, help="Cloud preset, e.g. lan/groq")
     p.add_argument("--base-url", default=None, help="Cloud or LAN service URL")
     p.add_argument("--cloud-model", default=None, help="Cloud model name")
@@ -395,6 +397,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-partial", action="store_true", help="Hide partial transcripts")
     p.add_argument("--partial-log", default=None,
                    help="Write timestamped partial/final results to a log")
+    p.add_argument("--beep", action="store_true", help="Enable optional tones outside recording (off by default)")
     p.add_argument("--no-beep", action="store_true", help="Disable feedback tones")
     p.add_argument("--config", action="store_true", help="Print effective configuration and exit")
     p.add_argument("--trigger-key", type=lambda v: int(v, 0), default=None,

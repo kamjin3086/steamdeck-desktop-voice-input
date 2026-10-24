@@ -15,7 +15,7 @@ def create_backend(cfg: dict | None, debug: bool = False) -> Backend:
     kind = cfg.get("backend", "local")
 
     if kind == "local":
-        name = cfg.get("model", "zh14m")
+        name = cfg.get("model", registry.DEFAULT_MODEL)
         if not registry.is_installed(name):
             raise RuntimeError(
                 f"Model {name} is not installed: ./run.sh models install {name}"
@@ -23,8 +23,9 @@ def create_backend(cfg: dict | None, debug: bool = False) -> Backend:
         return LocalSherpaBackend(
             registry.model_dir(name),
             num_threads=int(cfg.get("num_threads", 2)),
-            language=cfg.get("language", "zh"),
+            language=cfg.get("language", "auto"),
             provider=cfg.get("provider", "cpu"),
+            model_type=registry.get(name).get("model_type"),
             debug=debug,
         )
 
@@ -42,7 +43,7 @@ def create_backend(cfg: dict | None, debug: bool = False) -> Backend:
             base_url=base_url,
             api_key=api_key,
             model=cfg.get("model") or preset.get("model") or "whisper-1",
-            language=cfg.get("language", "zh"),
+            language=cfg.get("language", "auto"),
             timeout=float(cfg.get("timeout", 30)),
             response_format=cfg.get("response_format", "json"),
             endpoint=cfg.get("endpoint"),

@@ -52,26 +52,6 @@ def install_shortcut():
     print(f'Desktop shortcut: {desktop_dir() / "voice-input.desktop"}')
 
 
-def choose_model(cfg):
-    catalog = registry.models()
-    current = cfg.get('asr', {}).get('model', 'zh14m')
-    if current not in catalog:
-        current = 'zh14m'
-    names = list(catalog)
-    for index, name in enumerate(names, 1):
-        spec = catalog[name]
-        state = 'installed' if registry.is_installed(name) else 'not installed'
-        print(f'{index}. {name}: {spec["name"]} / approximately {spec.get("archive_bytes", 0) / 1e6:.0f} MB / {state}')
-    while True:
-        choice = input(f'Select model number or name (Enter keeps {current}): ').strip()
-        if not choice:
-            return current
-        if choice in catalog:
-            return choice
-        if choice.isdigit() and 1 <= int(choice) <= len(names):
-            return names[int(choice) - 1]
-        print('Enter a listed number or model name.')
-
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -82,15 +62,15 @@ def main(argv=None):
     subprocess.run([sys.executable, '-m', 'voice_input.desktop', '--check'],
                    cwd=ROOT, check=True, timeout=30)
     cfg = load_config()
-    name = args.model or choose_model(cfg)
+    current = cfg.get('asr', {}).get('model')
+    name = args.model or (current if current in registry.models() and cfg.get('asr', {}).get('backend', 'local') == 'local' else registry.DEFAULT_MODEL)
     print(f'Checking model {name}…', flush=True)
     registry.install(name, on_progress=lambda done, total: print(
         f'\rDownload: {done / 1e6:.1f} / {total / 1e6:.1f} MB', end='', flush=True))
     print('\nChecking that the model loads...', flush=True)
     model_cfg = dict(cfg.get('asr') or {})
     model_cfg.update(backend='local', model=name)
-    if args.language:
-        model_cfg['language'] = args.language
+    model_cfg['language'] = args.language or (model_cfg.get('language', 'auto') if name == current else registry.get(name).get('default_language', 'auto'))
     try:
         backend = create_backend(model_cfg)
     except Exception:
@@ -120,7 +100,7 @@ def main(argv=None):
         return 1
     print('Installation complete. The default voice activation button is L5 (left rear button).')
     print(f"Current activation button: {binding_label(cfg['trigger'])}. Hold to use; release to deactivate (end recording).")
-    print('Use Rebind button in the app to change it; use ./stop.sh to stop the app.')
+    print('Use Rebind button to change the key, or Change model to download and switch models. Use ./stop.sh to exit.')
     if not args.no_launch:
         # Restart so a newly selected model takes effect in an existing window.
         from .runtime import stop_desktop, stop_worker
