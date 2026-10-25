@@ -16,7 +16,9 @@ printf 'Desktop: %s; session: %s\n' "${XDG_CURRENT_DESKTOP:-unknown}" "${XDG_SES
 command -v pw-record
 ```
 
-选择用户可写目录，例如 `~/Applications/steamdeck-desktop-voice-input`。若目录已存在，更新前先检查远程地址和工作区状态，保留本地修改。优先复用现有安装，避免意外创建多个副本。单实例锁按项目目录区分，不同目录可以各运行一个实例。
+默认使用用户可写目录 `~/.local/share/steamdeck-desktop-voice-input`，避开用户可能留给 AppImage 集成使用的 `~/Applications`。若目录已存在，更新前先检查远程地址和工作区状态，保留本地修改。优先复用现有安装，避免意外创建多个副本。单实例锁按项目目录区分，不同目录可以各运行一个实例。
+
+如果已有项目位于 `~/Applications`，迁移前先在旧位置停止程序，检查目标目录冲突，保留模型和本地修改，并在新目录重跑安装器以更新快捷方式。主动安装过旧 systemd 服务时先停用；只有用户仍需该启动方式时才在新位置重新生成单元。不要擅自搬移另一套正常使用的安装。
 
 完成条件：明确目标机器、会话和安装目录。如果实际运行在另一台机器或无图形会话的 SSH 环境中，报告设备可用性之前应说明这一限制。
 
@@ -27,8 +29,8 @@ command -v pw-record
 首次安装：
 
 ```bash
-mkdir -p ~/Applications
-cd ~/Applications
+mkdir -p ~/.local/share
+cd ~/.local/share
 git clone https://github.com/kamjin3086/steamdeck-desktop-voice-input.git
 cd steamdeck-desktop-voice-input
 VOICE_INPUT_NO_PAUSE=1 bash init.sh --no-launch

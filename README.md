@@ -34,12 +34,14 @@ The installer uses the checkout's `.venv/` and `models/`, plus your user configu
 Switch to Desktop Mode and open Konsole:
 
 ```bash
-mkdir -p ~/Applications
-cd ~/Applications
+mkdir -p ~/.local/share
+cd ~/.local/share
 git clone https://github.com/kamjin3086/steamdeck-desktop-voice-input.git
 cd steamdeck-desktop-voice-input
 ./init.sh
 ```
+
+The recommended checkout is `~/.local/share/steamdeck-desktop-voice-input`. Keep it outside `~/Applications`, which you may use for AppImage applications and their integration tools. The installer runs in the checkout you choose; it does not relocate files automatically.
 
 SenseVoice is installed automatically; there is no model-choice prompt. The installer creates **Steam Deck Voice Input** on your desktop and in the application menu, then launches it when device checks pass.
 
@@ -120,3 +122,9 @@ This initial open-source release includes automated lifecycle and binding tests,
 ## License
 
 [MIT](LICENSE). Copyright (c) 2026 kamjin3086.
+
+## Move an existing installation
+
+If the checkout is currently under `~/Applications`, stop it **before** moving it because process ownership is tied to its path. Move it to `~/.local/share/steamdeck-desktop-voice-input`, then run `bash init.sh` in the new directory to check/repair the environment and refresh the desktop/application-menu shortcuts. Keep the `models/` directory to reuse downloads. Your configuration and selected model remain in `~/.config/voice-input/config.json`.
+
+Check whether the destination already exists before moving; do not overwrite or merge an existing checkout blindly. If you enabled the optional legacy systemd user service, disable it before moving, then regenerate its unit at the new location only if you still want CLI service startup. The normal GUI installer does not update that optional service.

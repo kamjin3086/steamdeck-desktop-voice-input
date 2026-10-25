@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) | [中文首页](README.zh-CN.md)
 
+## 尚未发布
+
+- 推荐安装到 `~/.local/share/steamdeck-desktop-voice-input`，避开 AppImage 常用的 `~/Applications`，并补充迁移说明。
+
 ## 0.2.0 — 2026-10-24
 
 - 安装时自动使用 SenseVoice，GUI 提供“常用语言”“全球主要语言（Qwen3-ASR）”“更多语言（Omnilingual ASR）”三组。

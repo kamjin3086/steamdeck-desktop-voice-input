@@ -2,6 +2,10 @@
 
 English | [简体中文](CHANGELOG.zh-CN.md)
 
+## Unreleased
+
+- Recommend `~/.local/share/steamdeck-desktop-voice-input` instead of the AppImage-oriented `~/Applications` directory, with migration instructions.
+
 ## 0.2.0 - 2026-10-24
 
 - Install SenseVoice automatically; offer three language groups in the GUI: Common languages, Global languages (Qwen3-ASR), and More languages (Omnilingual ASR).

@@ -16,7 +16,9 @@ printf 'Desktop: %s; session: %s\n' "${XDG_CURRENT_DESKTOP:-unknown}" "${XDG_SES
 command -v pw-record
 ```
 
-Use a writable user directory, such as `~/Applications/steamdeck-desktop-voice-input`. If it already exists, inspect its origin and working tree before updating it. Preserve local edits. Reuse an existing installation rather than creating an accidental second copy. The process lock is per checkout; two distinct checkouts can each run an instance.
+Use `~/.local/share/steamdeck-desktop-voice-input` as the default writable checkout. Avoid `~/Applications` so this source installation stays outside the directory the user reserves for AppImage integration. If it already exists, inspect its origin and working tree before updating it. Preserve local edits. Reuse an existing installation rather than creating an accidental second copy. The process lock is per checkout; two distinct checkouts can each run an instance.
+
+If an existing checkout is under `~/Applications`, stop it at the old path before moving, check the destination for conflicts, preserve its models and local changes, and rerun the installer at the new path to refresh shortcuts. Disable any explicitly installed legacy systemd service before moving; regenerate its unit afterward only if the user still wants that startup method. Do not silently relocate another working installation.
 
 Completion: the target host/session and checkout are identified. If you are on another machine or a non-graphical SSH session, state that limitation before reporting device readiness.
 
@@ -27,8 +29,8 @@ A fresh installation automatically uses SenseVoice for Mandarin, English, Canton
 For a new checkout:
 
 ```bash
-mkdir -p ~/Applications
-cd ~/Applications
+mkdir -p ~/.local/share
+cd ~/.local/share
 git clone https://github.com/kamjin3086/steamdeck-desktop-voice-input.git
 cd steamdeck-desktop-voice-input
 VOICE_INPUT_NO_PAUSE=1 bash init.sh --no-launch

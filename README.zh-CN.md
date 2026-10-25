@@ -36,12 +36,14 @@
 切换到桌面模式，打开 Konsole：
 
 ```bash
-mkdir -p ~/Applications
-cd ~/Applications
+mkdir -p ~/.local/share
+cd ~/.local/share
 git clone https://github.com/kamjin3086/steamdeck-desktop-voice-input.git
 cd steamdeck-desktop-voice-input
 ./init.sh
 ```
+
+推荐项目目录为 `~/.local/share/steamdeck-desktop-voice-input`，避开可能交给 AppImage 及其集成工具管理的 `~/Applications`。安装器在你选定的项目目录中运行，不会自动搬移文件。
 
 安装器自动安装默认 SenseVoice，不需要选择模型。安装器会在桌面和应用菜单创建 **Steam Deck Voice Input** 快捷方式，设备检查通过后启动应用。
 
@@ -123,3 +125,9 @@ ASCII 文字通过 uinput 模拟键盘输入，中文等 Unicode 文字通过剪
 ## 许可证
 
 [MIT](LICENSE)，Copyright (c) 2026 kamjin3086。正式许可条款见英文 LICENSE 原文。
+
+## 迁移已有安装
+
+如果已经装在 `~/Applications` 下，请在移动前先运行旧目录中的 `./stop.sh`，因为进程归属按目录路径区分。将项目移动到 `~/.local/share/steamdeck-desktop-voice-input` 后，在新目录运行 `bash init.sh`，检查及修复环境并更新桌面和应用菜单快捷方式。保留 `models/` 可以复用已下载模型，配置和已选模型仍保存在 `~/.config/voice-input/config.json`。
+
+移动前先检查目标目录是否存在，不要直接覆盖或合并已有项目。如果启用过可选的旧 systemd 用户服务，请先停用；仍希望使用命令行服务时，再从新位置重新生成服务单元。普通 GUI 安装器不会更新这个可选服务。
